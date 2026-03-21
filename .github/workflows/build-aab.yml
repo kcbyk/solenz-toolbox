@@ -40,33 +40,40 @@ jobs:
         MANIFEST="android/app/src/main/AndroidManifest.xml"
         sed -i 's|</application>|    <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-2972753653386219~2598370725"/>\n    </application>|' "$MANIFEST"
         
-    - name: Add dependencies to build.gradle
+    - name: Add dependencies
       run: |
         GRADLE="android/app/build.gradle"
         sed -i '/dependencies {/a\    implementation "com.google.android.gms:play-services-ads:23.6.0"\n    implementation "com.android.billingclient:billing:7.1.1"' "$GRADLE"
 
-    - name: Add permissions to AndroidManifest
+    - name: Add permissions
       run: |
         MANIFEST="android/app/src/main/AndroidManifest.xml"
         sed -i '/<uses-permission android:name="android.permission.INTERNET"/a\    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n    <uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <uses-permission android:name="android.permission.VIBRATE"/>' "$MANIFEST"
 
     - name: Copy app icons
       run: |
-        DENSITIES=("mdpi" "hdpi" "xhdpi" "xxhdpi" "xxxhdpi")
-        for d in "${DENSITIES[@]}"; do
+        for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
           cp "resources/ic_launcher_mipmap-${d}.png" "android/app/src/main/res/mipmap-${d}/ic_launcher.png"
           cp "resources/ic_launcher_mipmap-${d}.png" "android/app/src/main/res/mipmap-${d}/ic_launcher_round.png"
           cp "resources/ic_launcher_mipmap-${d}.png" "android/app/src/main/res/mipmap-${d}/ic_launcher_foreground.png"
         done
-        echo "Icons copied!"
+
+    - name: Decode Keystore
+      run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/solenz.keystore
+
+    - name: Add signing config to build.gradle
+      run: |
+        GRADLE="android/app/build.gradle"
+        sed -i '/android {/a\    signingConfigs {\n        release {\n            storeFile file("solenz.keystore")\n            storePassword "solenz123"\n            keyAlias "solenz"\n            keyPassword "solenz123"\n        }\n    }' "$GRADLE"
+        sed -i 's/buildTypes {/buildTypes {\n        release {\n            signingConfig signingConfigs.release\n            minifyEnabled false\n        }/' "$GRADLE"
     
-    - name: Build Release AAB
+    - name: Build Signed AAB
       working-directory: android
       run: ./gradlew bundleRelease
       
     - name: Upload AAB
       uses: actions/upload-artifact@v4
       with:
-        name: solenz-toolbox-v1.0.0
+        name: solenz-toolbox-v1.0.0-signed
         path: android/app/build/outputs/bundle/release/app-release.aab
         retention-days: 30
