@@ -1,0 +1,72 @@
+name: Build Android AAB
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Setup Java 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: Install dependencies
+      run: npm install
+      
+    - name: Build web app
+      run: npm run build
+      
+    - name: Add Android platform
+      run: npx cap add android
+      
+    - name: Sync Capacitor
+      run: npx cap sync android
+
+    - name: Add AdMob to AndroidManifest
+      run: |
+        MANIFEST="android/app/src/main/AndroidManifest.xml"
+        sed -i 's|</application>|    <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-2972753653386219~2598370725"/>\n    </application>|' "$MANIFEST"
+        
+    - name: Add dependencies to build.gradle
+      run: |
+        GRADLE="android/app/build.gradle"
+        sed -i '/dependencies {/a\    implementation "com.google.android.gms:play-services-ads:23.6.0"\n    implementation "com.android.billingclient:billing:7.1.1"' "$GRADLE"
+
+    - name: Add permissions to AndroidManifest
+      run: |
+        MANIFEST="android/app/src/main/AndroidManifest.xml"
+        sed -i '/<uses-permission android:name="android.permission.INTERNET"/a\    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n    <uses-permission android:name="android.permission.RECORD_AUDIO"/>\n    <uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <uses-permission android:name="android.permission.VIBRATE"/>' "$MANIFEST"
+
+    - name: Copy app icons
+      run: |
+        DENSITIES=("mdpi" "hdpi" "xhdpi" "xxhdpi" "xxxhdpi")
+        for d in "${DENSITIES[@]}"; do
+          cp "resources/ic_launcher_mipmap-${d}.png" "android/app/src/main/res/mipmap-${d}/ic_launcher.png"
+          cp "resources/ic_launcher_mipmap-${d}.png" "android/app/src/main/res/mipmap-${d}/ic_launcher_round.png"
+          cp "resources/ic_launcher_mipmap-${d}.png" "android/app/src/main/res/mipmap-${d}/ic_launcher_foreground.png"
+        done
+        echo "Icons copied!"
+    
+    - name: Build Release AAB
+      working-directory: android
+      run: ./gradlew bundleRelease
+      
+    - name: Upload AAB
+      uses: actions/upload-artifact@v4
+      with:
+        name: solenz-toolbox-v1.0.0
+        path: android/app/build/outputs/bundle/release/app-release.aab
+        retention-days: 30
