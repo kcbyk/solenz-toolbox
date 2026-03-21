@@ -42,7 +42,7 @@ jobs:
     - name: Add signing config
       run: |
         sed -i '/android {/a\    signingConfigs {\n        release {\n            storeFile file("solenz.keystore")\n            storePassword "solenz123"\n            keyAlias "solenz"\n            keyPassword "solenz123"\n        }\n    }' android/app/build.gradle
-        sed -i 's/signingConfig signingConfigs.debug/signingConfig signingConfigs.release/' android/app/build.gradle
+        sed -i 's/minifyEnabled false/minifyEnabled false\n            signingConfig signingConfigs.release/' android/app/build.gradle
     - name: Build Signed AAB & APK
       working-directory: android
       run: ./gradlew bundleRelease assembleRelease
