@@ -1,4 +1,4 @@
-name: Build Android AAB
+name: Build Android AAB & APK
 on:
   push:
     branches: [ main ]
@@ -25,6 +25,10 @@ jobs:
       run: npx cap add android
     - name: Sync Capacitor
       run: npx cap sync android
+    - name: Set targetSdkVersion and compileSdkVersion to 35
+      run: |
+        sed -i 's/targetSdkVersion = 34/targetSdkVersion = 35/' android/variables.gradle
+        sed -i 's/compileSdkVersion = 34/compileSdkVersion = 35/' android/variables.gradle
     - name: Add AdMob to AndroidManifest
       run: sed -i 's|</application>|    <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-2972753653386219~2598370725"/>\n    </application>|' android/app/src/main/AndroidManifest.xml
     - name: Add dependencies
@@ -39,11 +43,16 @@ jobs:
       run: |
         sed -i '/android {/a\    signingConfigs {\n        release {\n            storeFile file("solenz.keystore")\n            storePassword "solenz123"\n            keyAlias "solenz"\n            keyPassword "solenz123"\n        }\n    }' android/app/build.gradle
         sed -i 's/signingConfig signingConfigs.debug/signingConfig signingConfigs.release/' android/app/build.gradle
-    - name: Build Signed AAB
+    - name: Build Signed AAB & APK
       working-directory: android
-      run: ./gradlew bundleRelease
+      run: ./gradlew bundleRelease assembleRelease
     - name: Upload AAB
       uses: actions/upload-artifact@v4
       with:
-        name: solenz-toolbox-signed
+        name: solenz-toolbox-aab
         path: android/app/build/outputs/bundle/release/app-release.aab
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: solenz-toolbox-apk
+        path: android/app/build/outputs/apk/release/app-release.apk
