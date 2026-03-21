@@ -25,6 +25,10 @@ jobs:
       run: npx cap add android
     - name: Sync Capacitor
       run: npx cap sync android
+    - name: Set targetSdkVersion and compileSdkVersion to 35
+      run: |
+        sed -i 's/targetSdkVersion = 34/targetSdkVersion = 35/' android/variables.gradle
+        sed -i 's/compileSdkVersion = 34/compileSdkVersion = 35/' android/variables.gradle
     - name: Add AdMob to AndroidManifest
       run: sed -i 's|</application>|    <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-2972753653386219~2598370725"/>\n    </application>|' android/app/src/main/AndroidManifest.xml
     - name: Add dependencies
